@@ -4,12 +4,14 @@ Loads the trained RandomForest model and uses SHAP to explain predictions.
 """
 
 import os
+import io
 import numpy as np
 import pandas as pd
 import joblib
 import shap
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+import data_cleaner
 
 # ── App Setup ────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -193,6 +195,88 @@ def predict():
 
 
 # ── Run ──────────────────────────────────────────────────────────────────────
+
+@app.route("/upload", methods=["POST"])
+def upload():
+    """Accept a CSV file upload, clean the data, and return batch predictions."""
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
+
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"error": "No file selected"}), 400
+
+        # Read the file
+        filename = file.filename.lower()
+        if filename.endswith(".csv"):
+            raw_df = pd.read_csv(file)
+        elif filename.endswith((".xlsx", ".xls")):
+            raw_df = pd.read_excel(file)
+        else:
+            return jsonify({"error": "Unsupported file format. Please upload a CSV or Excel file."}), 400
+
+        if len(raw_df) == 0:
+            return jsonify({"error": "The uploaded file contains no data rows."}), 400
+
+        # Clean the data
+        cleaned_df, employee_ids, warnings = data_cleaner.clean_data(raw_df)
+
+        # Run predictions for all employees
+        results = []
+        raw_scores = model.predict(cleaned_df)
+        shap_values = explainer.shap_values(cleaned_df)
+
+        for idx in range(len(cleaned_df)):
+            row = cleaned_df.iloc[idx]
+            risk_score = float(np.clip(raw_scores[idx], 0, 100))
+
+            # SHAP factors
+            factors = []
+            for i, feat in enumerate(FEATURE_NAMES):
+                impact = float(shap_values[idx][i])
+                factors.append({
+                    "feature": feat,
+                    "label": FEATURE_LABELS[feat],
+                    "value": float(row[feat]),
+                    "impact": round(impact, 2),
+                    "direction": "Increases risk" if impact > 0 else "Decreases risk",
+                })
+            factors.sort(key=lambda x: abs(x["impact"]), reverse=True)
+
+            risk_info = classify_risk(risk_score)
+            recommendations = generate_recommendations(factors, risk_score)
+
+            results.append({
+                "employee_id": employee_ids[idx] if idx < len(employee_ids) else f"Employee {idx+1}",
+                "risk_score": round(risk_score, 1),
+                "risk_level": risk_info["level"],
+                "risk_color": risk_info["color"],
+                "risk_emoji": risk_info["emoji"],
+                "factors": factors,
+                "recommendations": recommendations,
+                "input_values": {feat: float(row[feat]) for feat in FEATURE_NAMES},
+            })
+
+        return jsonify({
+            "results": results,
+            "total_employees": len(results),
+            "warnings": warnings,
+            "base_value": round(float(explainer.expected_value), 2),
+        })
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
+
+
+@app.route("/download-sample")
+def download_sample():
+    """Serve the sample raw company data CSV for download."""
+    return send_from_directory(BASE_DIR, "sample_raw_company_data.csv", as_attachment=True)
+
+
 if __name__ == "__main__":
     print("Starting Burnout Risk Detection API on http://localhost:5000")
     app.run(debug=True, port=5000)

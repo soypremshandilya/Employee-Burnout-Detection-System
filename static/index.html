@@ -48,12 +48,125 @@
 
     <!-- ═══ Main Content ═══ -->
     <main class="main-content">
-        <!-- ── Info Banner ── -->
+        <!-- ── Tab Switcher ── -->
+        <div class="tab-switcher" id="tabSwitcher">
+            <button class="tab-btn active" data-tab="manual" id="tabManual">
+                <span class="tab-icon">🎛️</span> Manual Input
+            </button>
+            <button class="tab-btn" data-tab="upload" id="tabUpload">
+                <span class="tab-icon">📁</span> Upload Data
+            </button>
+        </div>
+
+        <!-- ── Info Banner (Manual Tab) ── -->
         <section class="info-banner" id="infoBanner">
             <div class="info-icon">💡</div>
             <div class="info-text">
                 <strong>How it works:</strong> Enter an employee's task-level metrics below. Our Random Forest model analyzes workload intensity, 
                 context switching patterns, and work-hour data to predict burnout risk and explain the contributing factors using SHAP.
+            </div>
+        </section>
+
+        <!-- ── Upload Section (hidden by default) ── -->
+        <section class="upload-section hidden" id="uploadSection">
+            <div class="info-banner upload-info-banner">
+                <div class="info-icon">📊</div>
+                <div class="info-text">
+                    <strong>Batch Analysis:</strong> Upload a CSV file with raw employee data. The system will automatically clean messy column names, 
+                    handle missing values, and predict burnout risk for all employees at once.
+                </div>
+            </div>
+
+            <div class="section-header">
+                <h2>📁 Upload Raw Company Data</h2>
+                <p>Upload a CSV or Excel file with employee work metrics</p>
+            </div>
+
+            <div class="upload-drop-zone" id="uploadDropZone">
+                <div class="drop-zone-content">
+                    <div class="drop-zone-icon">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M32 8L32 40" stroke="url(#uploadGrad)" stroke-width="3" stroke-linecap="round"/>
+                            <path d="M20 24L32 12L44 24" stroke="url(#uploadGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M8 40V48C8 52.4183 11.5817 56 16 56H48C52.4183 56 56 52.4183 56 48V40" stroke="url(#uploadGrad)" stroke-width="3" stroke-linecap="round"/>
+                            <defs>
+                                <linearGradient id="uploadGrad" x1="0" y1="0" x2="64" y2="64">
+                                    <stop stop-color="#06b6d4"/>
+                                    <stop offset="1" stop-color="#8b5cf6"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <p class="drop-zone-text">Drag & drop your CSV file here</p>
+                    <p class="drop-zone-subtext">or</p>
+                    <label for="fileInput" class="file-browse-btn">Browse Files</label>
+                    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden />
+                    <p class="drop-zone-formats">Supports CSV, XLSX formats</p>
+                </div>
+            </div>
+
+            <div class="upload-file-info hidden" id="uploadFileInfo">
+                <div class="file-info-card">
+                    <span class="file-info-icon">📄</span>
+                    <div class="file-info-details">
+                        <span class="file-info-name" id="uploadFileName">--</span>
+                        <span class="file-info-size" id="uploadFileSize">--</span>
+                    </div>
+                    <button class="file-remove-btn" id="fileRemoveBtn" title="Remove file">✕</button>
+                </div>
+            </div>
+
+            <div class="upload-actions">
+                <button id="uploadBtn" class="analyze-btn" disabled>
+                    <span class="btn-text">🚀 Analyze All Employees</span>
+                    <span class="btn-loader" id="uploadBtnLoader">
+                        <span class="spinner"></span>
+                        Processing...
+                    </span>
+                </button>
+                <a href="/download-sample" class="sample-download-link" download>
+                    📥 Download Sample CSV
+                </a>
+            </div>
+
+            <!-- Upload Warnings -->
+            <div class="upload-warnings hidden" id="uploadWarnings">
+                <div class="warning-header">⚠️ Data Cleaning Notes</div>
+                <ul class="warning-list" id="warningList"></ul>
+            </div>
+
+            <!-- Batch Results -->
+            <div class="batch-results hidden" id="batchResults">
+                <div class="section-header">
+                    <h2>🧠 Batch Burnout Analysis</h2>
+                    <p>Risk assessment for <span id="totalEmployees">0</span> employees</p>
+                </div>
+
+                <div class="batch-summary" id="batchSummary"></div>
+
+                <div class="batch-table-container">
+                    <table class="batch-table" id="batchTable">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Risk Score</th>
+                                <th>Risk Level</th>
+                                <th>Top Factor</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batchTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Employee Detail Modal -->
+            <div class="employee-modal hidden" id="employeeModal">
+                <div class="modal-overlay" id="modalOverlay"></div>
+                <div class="modal-content" id="modalContent">
+                    <button class="modal-close" id="modalClose">✕</button>
+                    <div class="modal-body" id="modalBody"></div>
+                </div>
             </div>
         </section>
 
