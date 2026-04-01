@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Employee Burnout Risk Detection</title>
+    <meta name="description" content="Task-level employee burnout risk detection system using AI to analyze workload intensity, task fragmentation, and productivity patterns." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <!-- ═══ Animated Background Particles ═══ -->
+    <div class="bg-particles" id="bgParticles"></div>
+
+    <!-- ═══ Header ═══ -->
+    <header class="header" id="header">
+        <div class="header-glow"></div>
+        <div class="header-content">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="24" cy="24" r="20" stroke="url(#grad1)" stroke-width="3" opacity="0.3"/>
+                        <path d="M24 8C15.2 8 8 15.2 8 24s7.2 16 16 16 16-7.2 16-16S32.8 8 24 8z" fill="url(#grad1)" opacity="0.15"/>
+                        <path d="M24 14v10l7 7" stroke="url(#grad1)" stroke-width="2.5" stroke-linecap="round"/>
+                        <circle cx="24" cy="24" r="2.5" fill="url(#grad1)"/>
+                        <path d="M16 34c2-3 5-5 8-5s6 2 8 5" stroke="#ef4444" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+                        <defs>
+                            <linearGradient id="grad1" x1="0" y1="0" x2="48" y2="48">
+                                <stop stop-color="#06b6d4"/>
+                                <stop offset="1" stop-color="#8b5cf6"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>Burnout Risk Detection</h1>
+                    <p class="tagline">AI-Powered Task-Level Employee Wellness Analysis</p>
+                </div>
+            </div>
+            <div class="header-badge">
+                <span class="badge-dot"></span>
+                <span>ML Model Active</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══ Main Content ═══ -->
+    <main class="main-content">
+        <!-- ── Info Banner ── -->
+        <section class="info-banner" id="infoBanner">
+            <div class="info-icon">💡</div>
+            <div class="info-text">
+                <strong>How it works:</strong> Enter an employee's task-level metrics below. Our Random Forest model analyzes workload intensity, 
+                context switching patterns, and work-hour data to predict burnout risk and explain the contributing factors using SHAP.
+            </div>
+        </section>
+
+        <!-- ── Input Section ── -->
+        <section class="input-section" id="inputSection">
+            <div class="section-header">
+                <h2>📊 Employee Work Metrics</h2>
+                <p>Fill in the task-level data to analyze burnout risk</p>
+            </div>
+
+            <form id="burnoutForm" class="input-grid">
+                <!-- Tasks Assigned -->
+                <div class="input-card" data-feature="tasks-assigned">
+                    <div class="input-card-header">
+                        <span class="input-icon">📋</span>
+                        <label for="tasksAssigned">Tasks Assigned</label>
+                    </div>
+                    <p class="input-desc">Total number of tasks assigned in the period</p>
+                    <div class="input-row">
+                        <input type="range" id="tasksAssignedRange" min="5" max="50" value="25" class="range-input" />
+                        <input type="number" id="tasksAssigned" name="Tasks_Assigned" min="5" max="50" value="25" class="num-input" required />
+                    </div>
+                </div>
+
+                <!-- Tasks Completed -->
+                <div class="input-card" data-feature="tasks-completed">
+                    <div class="input-card-header">
+                        <span class="input-icon">✅</span>
+                        <label for="tasksCompleted">Tasks Completed</label>
+                    </div>
+                    <p class="input-desc">Number of tasks actually completed</p>
+                    <div class="input-row">
+                        <input type="range" id="tasksCompletedRange" min="3" max="50" value="20" class="range-input" />
+                        <input type="number" id="tasksCompleted" name="Tasks_Completed" min="3" max="50" value="20" class="num-input" required />
+                    </div>
+                </div>
+
+                <!-- Context Switches -->
+                <div class="input-card" data-feature="context-switches">
+                    <div class="input-card-header">
+                        <span class="input-icon">🔄</span>
+                        <label for="contextSwitches">Context Switches / Day</label>
+                    </div>
+                    <p class="input-desc">How often the employee switches between tasks daily</p>
+                    <div class="input-row">
+                        <input type="range" id="contextSwitchesRange" min="1" max="25" value="10" class="range-input" />
+                        <input type="number" id="contextSwitches" name="Context_Switches_Per_Day" min="1" max="25" value="10" class="num-input" required />
+                    </div>
+                </div>
+
+                <!-- Avg Uninterrupted Work -->
+                <div class="input-card" data-feature="uninterrupted-work">
+                    <div class="input-card-header">
+                        <span class="input-icon">🎯</span>
+                        <label for="uninterruptedWork">Avg Uninterrupted Work (min)</label>
+                    </div>
+                    <p class="input-desc">Average duration of uninterrupted focus time</p>
+                    <div class="input-row">
+                        <input type="range" id="uninterruptedWorkRange" min="10" max="120" value="60" class="range-input" />
+                        <input type="number" id="uninterruptedWork" name="Avg_Uninterrupted_Work_Mins" min="10" max="120" value="60" class="num-input" required />
+                    </div>
+                </div>
+
+                <!-- Standard Hours -->
+                <div class="input-card" data-feature="standard-hours">
+                    <div class="input-card-header">
+                        <span class="input-icon">⏰</span>
+                        <label for="standardHours">Standard Hours Logged</label>
+                    </div>
+                    <p class="input-desc">Weekly standard working hours</p>
+                    <div class="input-row">
+                        <input type="range" id="standardHoursRange" min="30" max="50" value="40" step="0.1" class="range-input" />
+                        <input type="number" id="standardHours" name="Standard_Hours_Logged" min="30" max="50" value="40" step="0.1" class="num-input" required />
+                    </div>
+                </div>
+
+                <!-- After-Hours Work -->
+                <div class="input-card" data-feature="after-hours">
+                    <div class="input-card-header">
+                        <span class="input-icon">🌙</span>
+                        <label for="afterHours">After-Hours Work (min)</label>
+                    </div>
+                    <p class="input-desc">Total minutes worked outside regular hours</p>
+                    <div class="input-row">
+                        <input type="range" id="afterHoursRange" min="0" max="600" value="100" class="range-input" />
+                        <input type="number" id="afterHours" name="After_Hours_Mins" min="0" max="600" value="100" class="num-input" required />
+                    </div>
+                </div>
+
+                <!-- Missed Deadlines -->
+                <div class="input-card" data-feature="missed-deadlines">
+                    <div class="input-card-header">
+                        <span class="input-icon">📅</span>
+                        <label for="missedDeadlines">Missed Deadlines</label>
+                    </div>
+                    <p class="input-desc">Number of deadlines missed in the period</p>
+                    <div class="input-row">
+                        <input type="range" id="missedDeadlinesRange" min="0" max="5" value="1" class="range-input" />
+                        <input type="number" id="missedDeadlines" name="Missed_Deadlines" min="0" max="5" value="1" class="num-input" required />
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <div class="submit-area">
+                    <button type="submit" id="analyzeBtn" class="analyze-btn">
+                        <span class="btn-text">🔍 Analyze Burnout Risk</span>
+                        <span class="btn-loader" id="btnLoader">
+                            <span class="spinner"></span>
+                            Analyzing...
+                        </span>
+                    </button>
+                    <button type="button" id="resetBtn" class="reset-btn">↻ Reset Values</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- ── Results Section (hidden by default) ── -->
+        <section class="results-section hidden" id="resultsSection">
+            <div class="section-header">
+                <h2>🧠 Burnout Risk Analysis</h2>
+                <p>AI-generated risk assessment with explainable insights</p>
+            </div>
+
+            <div class="results-grid">
+                <!-- Risk Score Card -->
+                <div class="result-card score-card" id="scoreCard">
+                    <h3>Risk Score</h3>
+                    <div class="gauge-container">
+                        <svg class="gauge-svg" viewBox="0 0 200 120">
+                            <defs>
+                                <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#22c55e"/>
+                                    <stop offset="35%" stop-color="#eab308"/>
+                                    <stop offset="65%" stop-color="#f97316"/>
+                                    <stop offset="100%" stop-color="#ef4444"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Background arc -->
+                            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="14" stroke-linecap="round"/>
+                            <!-- Filled arc -->
+                            <path id="gaugeArc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGrad)" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 251.3"/>
+                            <!-- Needle -->
+                            <line id="gaugeNeedle" x1="100" y1="100" x2="100" y2="30" stroke="white" stroke-width="2.5" stroke-linecap="round" transform="rotate(-90, 100, 100)"/>
+                            <circle cx="100" cy="100" r="5" fill="white"/>
+                        </svg>
+                        <div class="gauge-score" id="gaugeScore">0</div>
+                        <div class="gauge-label" id="gaugeLabel">--</div>
+                    </div>
+                    <div class="risk-badge" id="riskBadge">
+                        <span id="riskEmoji"></span>
+                        <span id="riskLevel"></span>
+                    </div>
+                </div>
+
+                <!-- Contributing Factors Card -->
+                <div class="result-card factors-card" id="factorsCard">
+                    <h3>Contributing Factors</h3>
+                    <p class="card-subtitle">SHAP-based feature impact analysis</p>
+                    <div class="factors-list" id="factorsList"></div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="result-card recs-card" id="recsCard">
+                <h3>💡 Actionable Recommendations</h3>
+                <div class="recs-grid" id="recsGrid"></div>
+            </div>
+
+            <!-- Technical Details -->
+            <div class="result-card details-card" id="detailsCard">
+                <button class="details-toggle" id="detailsToggle">
+                    <span>📐 Technical Details</span>
+                    <span class="toggle-arrow">▾</span>
+                </button>
+                <div class="details-content hidden" id="detailsContent">
+                    <div class="detail-row">
+                        <span class="detail-label">Model</span>
+                        <span class="detail-value">Random Forest Regressor (100 trees)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Explainability</span>
+                        <span class="detail-value">SHAP TreeExplainer</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Training Data</span>
+                        <span class="detail-value">6,000 employee records</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Base Risk Value</span>
+                        <span class="detail-value" id="baseValue">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Analysis button -->
+            <div class="new-analysis-area">
+                <button id="newAnalysisBtn" class="analyze-btn secondary">
+                    ← Analyze Another Employee
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- ═══ Footer ═══ -->
+    <footer class="footer">
+        <p>Task Level Employee Burnout Risk Detection &mdash; Powered by Random Forest &amp; SHAP Explainability</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
