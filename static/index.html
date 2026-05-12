@@ -39,9 +39,15 @@
                     <p class="tagline">AI-Powered Task-Level Employee Wellness Analysis</p>
                 </div>
             </div>
-            <div class="header-badge">
-                <span class="badge-dot"></span>
-                <span>ML Model Active</span>
+            <div class="header-right-area">
+                <button class="new-chat-btn" id="newChatBtn" title="Open AI Chat">
+                    <span class="new-chat-icon">💬</span>
+                    <span>New Chat</span>
+                </button>
+                <div class="header-badge">
+                    <span class="badge-dot"></span>
+                    <span>ML Model Active</span>
+                </div>
             </div>
         </div>
     </header>
@@ -367,6 +373,35 @@
                     ← Analyze Another Employee
                 </button>
             </div>
+
+            <!-- ── AI Context Chat Assistant ── -->
+            <div class="ai-chat-section" id="contextChatSection">
+                <div class="result-card chat-card">
+                    <div class="chat-header-row">
+                        <div>
+                            <h3>🤖 AI Burnout Advisor</h3>
+                            <p class="card-subtitle">Ask questions about this employee's burnout analysis</p>
+                        </div>
+                        <button class="chat-clear-btn" id="contextChatClear" title="Clear chat">
+                            🗑️ Clear
+                        </button>
+                    </div>
+                    <div class="chat-messages" id="contextChatMessages">
+                        <div class="chat-msg chat-msg-ai">
+                            <div class="chat-msg-avatar">🤖</div>
+                            <div class="chat-msg-content">
+                                <div class="chat-msg-text">Hello! I'm your AI Burnout Advisor. I have access to the complete burnout analysis above — including risk score, SHAP factors, and recommendations. Ask me anything about this employee's results!</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" class="chat-input" id="contextChatInput" placeholder="Ask about this analysis... (e.g., 'Why is this employee at high risk?')" />
+                        <button class="chat-send-btn" id="contextChatSend" title="Send message">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 
@@ -374,6 +409,37 @@
     <footer class="footer">
         <p>Task Level Employee Burnout Risk Detection &mdash; Powered by Random Forest &amp; SHAP Explainability</p>
     </footer>
+
+    <!-- ═══ General AI Chat Modal ═══ -->
+    <div class="general-chat-modal hidden" id="generalChatModal">
+        <div class="gcm-overlay" id="generalChatOverlay"></div>
+        <div class="gcm-container">
+            <div class="gcm-header">
+                <div class="gcm-header-left">
+                    <span class="gcm-header-icon">💬</span>
+                    <div>
+                        <h3>AI Assistant</h3>
+                        <p class="gcm-tagline">Powered by Gemini 2.5 Flash</p>
+                    </div>
+                </div>
+                <button class="gcm-close" id="generalChatClose" title="Close chat">✕</button>
+            </div>
+            <div class="chat-messages gcm-messages" id="generalChatMessages">
+                <div class="chat-msg chat-msg-ai">
+                    <div class="chat-msg-avatar">🤖</div>
+                    <div class="chat-msg-content">
+                        <div class="chat-msg-text">Hi! I'm your general AI assistant. I can help with any questions you have. What would you like to know?</div>
+                    </div>
+                </div>
+            </div>
+            <div class="chat-input-area gcm-input-area">
+                <input type="text" class="chat-input" id="generalChatInput" placeholder="Ask anything..." />
+                <button class="chat-send-btn" id="generalChatSend" title="Send message">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script src="/static/script.js"></script>
 </body>

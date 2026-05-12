@@ -68,6 +68,7 @@
     let selectedFile = null;
     let currentTab = "manual";
     let batchData = null;
+    let lastAnalysisResult = null;  // Stores analysis data for context chat
 
     // ── Input Sync ──────────────────────────────────────────────────────
     inputPairs.forEach(({ range, num }) => {
@@ -436,6 +437,7 @@
             }
 
             const result = await response.json();
+            lastAnalysisResult = result;  // Save for context chat
             renderResults(result);
         } catch (error) {
             alert("Error: " + error.message);
@@ -598,4 +600,252 @@
         div.appendChild(document.createTextNode(str));
         return div.innerHTML;
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── AI Chat Systems ─────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── Simple Markdown → HTML Converter ─────────────────────────────────
+    function markdownToHtml(text) {
+        if (!text) return '';
+        let html = text
+            // Code blocks
+            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+            // Inline code
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            // Bold
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            // Italic
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            // Headers
+            .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+            // Unordered lists
+            .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
+            // Ordered lists
+            .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+            // Line breaks → paragraphs
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br/>');
+
+        // Wrap adjacent <li> in <ul>
+        html = html.replace(/(<li>.*?<\/li>(?:<br\/>)?)+/g, (match) => {
+            return '<ul>' + match.replace(/<br\/>/g, '') + '</ul>';
+        });
+
+        return '<p>' + html + '</p>';
+    }
+
+    // ── Chat Helpers ─────────────────────────────────────────────────────
+    function appendChatMessage(container, role, text, isError = false) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `chat-msg chat-msg-${role}${isError ? ' chat-msg-error' : ''}`;
+
+        const avatar = role === 'user' ? '👤' : '🤖';
+        const renderedText = role === 'ai' ? markdownToHtml(text) : escapeHtml(text);
+
+        msgDiv.innerHTML = `
+            <div class="chat-msg-avatar">${avatar}</div>
+            <div class="chat-msg-content">
+                <div class="chat-msg-text">${renderedText}</div>
+            </div>
+        `;
+
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+        return msgDiv;
+    }
+
+    function showTypingIndicator(container) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'chat-msg chat-msg-ai chat-typing-wrapper';
+        msgDiv.innerHTML = `
+            <div class="chat-msg-avatar">🤖</div>
+            <div class="chat-msg-content">
+                <div class="chat-msg-text chat-typing">
+                    <span class="chat-typing-dot"></span>
+                    <span class="chat-typing-dot"></span>
+                    <span class="chat-typing-dot"></span>
+                </div>
+            </div>
+        `;
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+        return msgDiv;
+    }
+
+    function removeTypingIndicator(container) {
+        const indicator = container.querySelector('.chat-typing-wrapper');
+        if (indicator) indicator.remove();
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // ── Context Chat (Burnout Advisor) ──────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════
+    const contextChatMessages = document.getElementById('contextChatMessages');
+    const contextChatInput = document.getElementById('contextChatInput');
+    const contextChatSend = document.getElementById('contextChatSend');
+    const contextChatClear = document.getElementById('contextChatClear');
+
+    let contextHistory = [];  // { role: 'user'|'ai', content: '...' }
+    let contextSending = false;
+
+    async function sendContextMessage() {
+        const message = contextChatInput.value.trim();
+        if (!message || contextSending || !lastAnalysisResult) return;
+
+        contextSending = true;
+        contextChatSend.disabled = true;
+        contextChatInput.value = '';
+
+        // Show user message
+        appendChatMessage(contextChatMessages, 'user', message);
+
+        // Show typing indicator
+        const typingEl = showTypingIndicator(contextChatMessages);
+
+        try {
+            const response = await fetch('/chat/context', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: message,
+                    context: lastAnalysisResult,
+                    history: contextHistory,
+                }),
+            });
+
+            const data = await response.json();
+            removeTypingIndicator(contextChatMessages);
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to get response');
+            }
+
+            // Show AI response
+            appendChatMessage(contextChatMessages, 'ai', data.response);
+
+            // Update history
+            contextHistory.push({ role: 'user', content: message });
+            contextHistory.push({ role: 'ai', content: data.response });
+
+        } catch (error) {
+            removeTypingIndicator(contextChatMessages);
+            appendChatMessage(contextChatMessages, 'ai', `Error: ${error.message}`, true);
+        } finally {
+            contextSending = false;
+            contextChatSend.disabled = false;
+            contextChatInput.focus();
+        }
+    }
+
+    contextChatSend.addEventListener('click', sendContextMessage);
+    contextChatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendContextMessage();
+        }
+    });
+
+    contextChatClear.addEventListener('click', () => {
+        contextHistory = [];
+        contextChatMessages.innerHTML = `
+            <div class="chat-msg chat-msg-ai">
+                <div class="chat-msg-avatar">🤖</div>
+                <div class="chat-msg-content">
+                    <div class="chat-msg-text">Chat cleared! I still have access to the current burnout analysis. What would you like to know?</div>
+                </div>
+            </div>
+        `;
+    });
+
+    // ════════════════════════════════════════════════════════════════════
+    // ── General Chat (Modal) ────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════
+    const newChatBtn = document.getElementById('newChatBtn');
+    const generalChatModal = document.getElementById('generalChatModal');
+    const generalChatOverlay = document.getElementById('generalChatOverlay');
+    const generalChatClose = document.getElementById('generalChatClose');
+    const generalChatMessages = document.getElementById('generalChatMessages');
+    const generalChatInput = document.getElementById('generalChatInput');
+    const generalChatSend = document.getElementById('generalChatSend');
+
+    let generalHistory = [];
+    let generalSending = false;
+
+    function openGeneralChat() {
+        generalChatModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => generalChatInput.focus(), 300);
+    }
+
+    function closeGeneralChat() {
+        generalChatModal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    newChatBtn.addEventListener('click', openGeneralChat);
+    generalChatClose.addEventListener('click', closeGeneralChat);
+    generalChatOverlay.addEventListener('click', closeGeneralChat);
+
+    async function sendGeneralMessage() {
+        const message = generalChatInput.value.trim();
+        if (!message || generalSending) return;
+
+        generalSending = true;
+        generalChatSend.disabled = true;
+        generalChatInput.value = '';
+
+        appendChatMessage(generalChatMessages, 'user', message);
+        const typingEl = showTypingIndicator(generalChatMessages);
+
+        try {
+            const response = await fetch('/chat/general', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: message,
+                    history: generalHistory,
+                }),
+            });
+
+            const data = await response.json();
+            removeTypingIndicator(generalChatMessages);
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to get response');
+            }
+
+            appendChatMessage(generalChatMessages, 'ai', data.response);
+
+            generalHistory.push({ role: 'user', content: message });
+            generalHistory.push({ role: 'ai', content: data.response });
+
+        } catch (error) {
+            removeTypingIndicator(generalChatMessages);
+            appendChatMessage(generalChatMessages, 'ai', `Error: ${error.message}`, true);
+        } finally {
+            generalSending = false;
+            generalChatSend.disabled = false;
+            generalChatInput.focus();
+        }
+    }
+
+    generalChatSend.addEventListener('click', sendGeneralMessage);
+    generalChatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendGeneralMessage();
+        }
+    });
+
+    // Extend existing Escape handler for general chat modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !generalChatModal.classList.contains('hidden')) {
+            closeGeneralChat();
+        }
+    });
+
 })();

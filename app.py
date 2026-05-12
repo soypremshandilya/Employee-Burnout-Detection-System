@@ -12,6 +12,18 @@ import shap
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import data_cleaner
+from dotenv import load_dotenv
+from google import genai
+
+# ── Load Environment Variables ───────────────────────────────────────────
+load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+gemini_client = None
+if GEMINI_API_KEY:
+    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+    print("Gemini API configured successfully.")
+else:
+    print("WARNING: GEMINI_API_KEY not found in .env — chat features will be disabled.")
 
 # ── App Setup ────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -275,6 +287,126 @@ def upload():
 def download_sample():
     """Serve the sample raw company data CSV for download."""
     return send_from_directory(BASE_DIR, "sample_raw_company_data.csv", as_attachment=True)
+
+
+# ── AI Chat Routes ───────────────────────────────────────────────────────
+
+@app.route("/chat/context", methods=["POST"])
+def chat_context():
+    """Context-aware chat: answer questions about the current burnout analysis."""
+    if not gemini_client:
+        return jsonify({"error": "Gemini API key not configured. Add GEMINI_API_KEY to .env file."}), 503
+
+    try:
+        data = request.get_json(force=True)
+        user_message = data.get("message", "").strip()
+        context = data.get("context", {})
+        history = data.get("history", [])
+
+        if not user_message:
+            return jsonify({"error": "Message cannot be empty."}), 400
+
+        # Build the system prompt with burnout analysis context
+        system_prompt = (
+            "You are an expert AI Burnout Advisor embedded in an Employee Burnout Risk Detection System. "
+            "You must answer questions ONLY based on the employee burnout analysis data provided below. "
+            "Do not make up information. If the user asks something unrelated to the analysis, politely redirect them.\n\n"
+            "=== CURRENT EMPLOYEE BURNOUT ANALYSIS ===\n"
+            f"Risk Score: {context.get('risk_score', 'N/A')} / 100\n"
+            f"Risk Level: {context.get('risk_level', 'N/A')}\n"
+            f"Risk Category: {context.get('risk_emoji', '')} {context.get('risk_level', 'N/A')}\n"
+            f"Base Risk Value (training avg): {context.get('base_value', 'N/A')}\n\n"
+        )
+
+        # Add SHAP factors
+        factors = context.get("factors", [])
+        if factors:
+            system_prompt += "SHAP Contributing Factors (sorted by impact):\n"
+            for f in factors:
+                system_prompt += (
+                    f"  - {f.get('label', f.get('feature', ''))}: value={f.get('value', 'N/A')}, "
+                    f"impact={f.get('impact', 0):+.2f} pts ({f.get('direction', '')})\n"
+                )
+            system_prompt += "\n"
+
+        # Add recommendations
+        recs = context.get("recommendations", [])
+        if recs:
+            system_prompt += "System Recommendations:\n"
+            for r in recs:
+                system_prompt += f"  - {r.get('icon', '')} {r.get('title', '')}: {r.get('desc', '')}\n"
+            system_prompt += "\n"
+
+        system_prompt += (
+            "=== END OF ANALYSIS DATA ===\n\n"
+            "Instructions:\n"
+            "- Answer concisely but thoroughly.\n"
+            "- Reference specific numbers and factors from the analysis.\n"
+            "- When giving recommendations, base them on the actual contributing factors.\n"
+            "- Use a professional but friendly tone.\n"
+            "- Format responses with markdown for readability.\n"
+        )
+
+        # Build conversation contents for Gemini
+        contents = []
+        for msg in history:
+            role = "user" if msg.get("role") == "user" else "model"
+            contents.append(genai.types.Content(role=role, parts=[genai.types.Part.from_text(text=msg.get("content", ""))]))
+        contents.append(genai.types.Content(role="user", parts=[genai.types.Part.from_text(text=user_message)]))
+
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config=genai.types.GenerateContentConfig(
+                system_instruction=system_prompt,
+            ),
+        )
+
+        return jsonify({"response": response.text})
+
+    except Exception as e:
+        return jsonify({"error": f"Chat error: {str(e)}"}), 500
+
+
+@app.route("/chat/general", methods=["POST"])
+def chat_general():
+    """General-purpose AI chat assistant (no burnout data access)."""
+    if not gemini_client:
+        return jsonify({"error": "Gemini API key not configured. Add GEMINI_API_KEY to .env file."}), 503
+
+    try:
+        data = request.get_json(force=True)
+        user_message = data.get("message", "").strip()
+        history = data.get("history", [])
+
+        if not user_message:
+            return jsonify({"error": "Message cannot be empty."}), 400
+
+        system_prompt = (
+            "You are a helpful, friendly, and knowledgeable AI assistant. "
+            "You can help with general questions on any topic. "
+            "Be concise, accurate, and use markdown formatting for readability. "
+            "You do NOT have access to any specific employee or burnout data."
+        )
+
+        contents = []
+        for msg in history:
+            role = "user" if msg.get("role") == "user" else "model"
+            contents.append(genai.types.Content(role=role, parts=[genai.types.Part.from_text(text=msg.get("content", ""))]))
+        contents.append(genai.types.Content(role="user", parts=[genai.types.Part.from_text(text=user_message)]))
+
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config=genai.types.GenerateContentConfig(
+                system_instruction=system_prompt,
+            ),
+        )
+
+        return jsonify({"response": response.text})
+
+    except Exception as e:
+        return jsonify({"error": f"Chat error: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
